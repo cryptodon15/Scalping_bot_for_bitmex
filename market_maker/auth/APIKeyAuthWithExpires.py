@@ -15,7 +15,6 @@ class APIKeyAuthWithExpires(AuthBase):
     def __call__(self, r):
         """
         Called when forming a request - generates api key headers. This call uses `expires` instead of nonce.
-
         This way it will not collide with other processes using the same API Key if requests arrive out of order.
         For more details, see https://www.bitmex.com/app/apiKeys
         """

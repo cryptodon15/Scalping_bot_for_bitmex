@@ -34,6 +34,7 @@ class BitMEX(object):
             raise ValueError("settings.ORDERID_PREFIX must be at most 13 characters long!")
         self.orderIDPrefix = orderIDPrefix
         self.retries = 0  # initialize counter
+        self.sleep_time = 15 # initial sleep counter
 
         # Prepare HTTPS session
         self.session = requests.Session()
@@ -79,7 +80,6 @@ class BitMEX(object):
 
     def recent_trades(self):
         """Get recent trades.
-
         Returns
         -------
         A list of dicts:
@@ -87,7 +87,6 @@ class BitMEX(object):
                u'date': 1306775375,
                u'price': 8.7401099999999996,
                u'tid': u'93842'},
-
         """
         return self.ws.recent_trades()
 
@@ -129,23 +128,21 @@ class BitMEX(object):
         return self.position(self.symbol)['homeNotional']
 
     @authentication_required
-    def buy(self, quantity, price):
+    def buy(self, quantity, price, post_only):
         """Place a buy order.
-
         Returns order object. ID: orderID
         """
         return self.place_order(quantity, price)
 
     @authentication_required
-    def sell(self, quantity, price):
+    def sell(self, quantity, price, post_only):
         """Place a sell order.
-
         Returns order object. ID: orderID
         """
         return self.place_order(-quantity, price)
 
     @authentication_required
-    def place_order(self, quantity, price):
+    def place_order(self, quantity, price, post_only):
         """Place an order."""
         if price < 0:
             raise Exception("Price must be positive.")
@@ -157,6 +154,7 @@ class BitMEX(object):
             'symbol': self.symbol,
             'orderQty': quantity,
             'price': price,
+            'execInst': post_only,
             'clOrdID': clOrdID
         }
         return self._curl_bitmex(path=endpoint, postdict=postdict, verb="POST")
@@ -170,11 +168,12 @@ class BitMEX(object):
     @authentication_required
     def create_bulk_orders(self, orders):
         """Create multiple orders."""
+        #pos = self.position(self.symbol)
         for order in orders:
             order['clOrdID'] = self.orderIDPrefix + base64.b64encode(uuid.uuid4().bytes).decode('utf8').rstrip('=\n')
             order['symbol'] = self.symbol
-            if self.postOnly:
-                order['execInst'] = 'ParticipateDoNotInitiate'
+            # if self.postOnly:
+            #     order['execInst'] = 'ParticipateDoNotInitiate'
         return self._curl_bitmex(path='order/bulk', postdict={'orders': orders}, verb='POST')
 
     @authentication_required
@@ -235,7 +234,7 @@ class BitMEX(object):
         # or you could change the clOrdID (set {"clOrdID": "new", "origClOrdID": "old"}) so that an amend
         # can't erroneously be applied twice.
         if max_retries is None:
-            max_retries = 0 if verb in ['POST', 'PUT'] else 3
+            max_retries = 0 if verb in ['POST', 'PUT'] else 10
 
         # Auth: API Key/Secret
         auth = APIKeyAuthWithExpires(self.apiKey, self.apiSecret)
@@ -248,6 +247,7 @@ class BitMEX(object):
 
         def retry():
             self.retries += 1
+            self.sleep_time += 10*self.retries
             if self.retries > max_retries:
                 raise Exception("Max retries on %s (%s) hit, raising." % (path, json.dumps(postdict or '')))
             return self._curl_bitmex(path, query, postdict, timeout, verb, rethrow_errors, max_retries)
@@ -309,8 +309,8 @@ class BitMEX(object):
             elif response.status_code == 503:
                 self.logger.warning("Unable to contact the BitMEX API (503), retrying. " +
                                     "Request: %s \n %s" % (url, json.dumps(postdict)))
-                time.sleep(3)
-                return retry()
+                time.sleep(self.sleep_time)
+                #return retry()
 
             elif response.status_code == 400:
                 error = response.json()['error']
@@ -348,15 +348,17 @@ class BitMEX(object):
         except requests.exceptions.Timeout as e:
             # Timeout, re-run this request
             self.logger.warning("Timed out on request: %s (%s), retrying..." % (path, json.dumps(postdict or '')))
-            return retry()
+            #time.sleep(15)
+            #return retry()
 
         except requests.exceptions.ConnectionError as e:
             self.logger.warning("Unable to contact the BitMEX API (%s). Please check the URL. Retrying. " +
                                 "Request: %s %s \n %s" % (e, url, json.dumps(postdict)))
-            time.sleep(1)
-            return retry()
+            #time.sleep(15)
+            #return retry()
 
         # Reset retry counter on success
         self.retries = 0
+        self.sleep_time = 15
 
         return response.json()

@@ -7,6 +7,8 @@ from future.standard_library import hooks
 with hooks():  # Python 2/3 compat
     from urllib.parse import urlparse
 
+# import pdb; pdb.set_trace()
+
 
 class APIKeyAuth(AuthBase):
 
@@ -27,10 +29,8 @@ class APIKeyAuth(AuthBase):
 
         return r
 
-
 def generate_expires():
     return int(time.time() + 3600)
-
 
 # Generates an API signature.
 # A signature is HMAC_SHA256(secret, verb + path + nonce + data), hex encoded.
@@ -44,6 +44,7 @@ def generate_expires():
 # nonce=1416993995705
 # data={"symbol":"XBTZ14","quantity":1,"price":395.01}
 # signature = HEX(HMAC_SHA256(secret, 'POST/api/v1/order1416993995705{"symbol":"XBTZ14","quantity":1,"price":395.01}'))
+
 def generate_signature(secret, verb, url, nonce, data):
     """Generate a request signature compatible with BitMEX."""
     # Parse the url so we can remove the base and extract just the path.
@@ -60,3 +61,4 @@ def generate_signature(secret, verb, url, nonce, data):
 
     signature = hmac.new(bytes(secret, 'utf8'), bytes(message, 'utf8'), digestmod=hashlib.sha256).hexdigest()
     return signature
+

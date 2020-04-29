@@ -7,7 +7,7 @@ from time import sleep
 import json
 import decimal
 import logging
-from market_maker.settings import settings
+from market_maker import settings
 from market_maker.auth.APIKeyAuth import generate_expires, generate_signature
 from market_maker.utils.log import setup_custom_logger
 from market_maker.utils.math import toNearest
@@ -208,6 +208,7 @@ class BitMEXWebsocket():
     def __on_message(self, message):
         '''Handler for parsing WS messages.'''
         message = json.loads(message)
+        #print (message)
         self.logger.debug(json.dumps(message))
 
         table = message['table'] if 'table' in message else None
@@ -329,6 +330,6 @@ if __name__ == "__main__":
     ws = BitMEXWebsocket()
     ws.logger = logger
     ws.connect("https://testnet.bitmex.com/api/v1")
+    #ws.position()
     while(ws.ws.sock.connected):
         sleep(1)
-

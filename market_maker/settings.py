@@ -1,43 +1,94 @@
-from __future__ import absolute_import
+import logging
+from os.path import join
+# API URL.
+#BASE_URL = "https://testnet.bitmex.com/api/v1/"
+BASE_URL = "https://www.bitmex.com/api/v1/" # Once you're ready, uncomment this.
 
-import importlib
-import os
-import sys
+# The BitMEX API requires permanent API keys. Go to https://testnet.bitmex.com/app/apiKeys to fill these out.
+API_KEY = "RdGHziCL6fxTprLbFzyta6nb"
+API_SECRET = "vemwsfJ3N99x1Al_CnUAQA8jbVQF71D5tsi5GeffkN_WGWpa" 
 
-from market_maker.utils.dotdict import dotdict
-import market_maker._settings_base as baseSettings
+SYMBOL = 'XBTUSD'
+
+# LOT
+LOT = 30
+
+# Wait times between orders / errors
+API_REST_INTERVAL = 1
+API_ERROR_INTERVAL = 10
+TIMEOUT = 7
+
+# Available levels: logging.(DEBUG|INFO|WARN|ERROR)
+LOG_LEVEL = logging.INFO
+
+# If any of these files (and this file) changes, reload the bot.
+WATCHED_FILES = [join('market_maker', 'market_maker.py'), join('market_maker', 'bitmex.py'), join('market_maker', 'settings.py')]
+
+# always amend orders
+RELIST_INTERVAL = 0.00
+
+# hyperparameters
+GAMMA = 15 #8000?
+K = 30
+D = 0.99
+THETA = 25
+ETA = 0.004
+ETA2 = 0.0006
+MAX_POS = 150
+
+DRY_RUN = False
+POST_ONLY = True
+
+# Not necessary:
+#=================
+ORDER_PAIRS = 6
+
+# ORDER_START_SIZE will be the number of contracts submitted on level 1
+# Number of contracts from level 1 to ORDER_PAIRS - 1 will follow the function
+# [ORDER_START_SIZE + ORDER_STEP_SIZE (Level -1)]
+ORDER_START_SIZE = 100
+ORDER_STEP_SIZE = 100
+
+# Distance between successive orders, as a percentage (example: 0.005 for 0.5%)
+INTERVAL = 0.005
+
+# Minimum spread to maintain, in percent, between asks & bids
+MIN_SPREAD = 0.01
+
+# If True, market-maker will place orders just inside the existing spread and work the interval % outwards,
+# rather than starting in the middle and killing potentially profitable spreads.
+MAINTAIN_SPREADS = True
+
+# This number defines far much the price of an existing order can be from a desired order before it is amended.
+# This is useful for avoiding unnecessary calls and maintaining your ratelimits.
+#
+# Further information:
+# Each order is designed to be (INTERVAL*n)% away from the spread.
+# If the spread changes and the order has moved outside its bound defined as
+# abs((desired_order['price'] / order['price']) - 1) > settings.RELIST_INTERVAL)
+# it will be resubmitted.
+#
+# 0.01 == 1%
+RELIST_INTERVAL = 0.01
+
+CHECK_POSITION_LIMITS = False
+MIN_POSITION = -10000
+MAX_POSITION = 10000
+
+#========================
 
 
-def import_path(fullpath):
-    """
-    Import a file with full path specification. Allows one to
-    import from anywhere, something __import__ does not do.
-    """
-    path, filename = os.path.split(fullpath)
-    filename, ext = os.path.splitext(filename)
-    sys.path.insert(0, path)
-    module = importlib.import_module(filename, path)
-    importlib.reload(module)  # Might be out of date
-    del sys.path[0]
-    return module
+# Might be necessary
+#=======================
+LOOP_INTERVAL = 5
 
+# Wait times between orders / errors
+API_REST_INTERVAL = 1
+API_ERROR_INTERVAL = 10
+TIMEOUT = 7
 
-userSettings = import_path(os.path.join('.', 'settings'))
-symbolSettings = None
-symbol = sys.argv[1] if len(sys.argv) > 1 else None
-if symbol:
-    print("Importing symbol settings for %s..." % symbol)
-    try:
-        symbolSettings = import_path(os.path.join('..', 'settings-%s' % symbol))
-    except Exception as e:
-        print("Unable to find settings-%s.py." % symbol)
-
-# Assemble settings.
-settings = {}
-settings.update(vars(baseSettings))
-settings.update(vars(userSettings))
-if symbolSettings:
-    settings.update(vars(symbolSettings))
-
-# Main export
-settings = dotdict(settings)
+# If we're doing a dry run, use these numbers for BTC balances
+DRY_BTC = 50
+ORDERID_PREFIX = "mm_bitmex_"
+CONTRACTS = ['XBTUSD']
+# ===========================
